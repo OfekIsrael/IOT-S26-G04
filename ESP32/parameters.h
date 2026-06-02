@@ -1,27 +1,23 @@
-//user defined parameters
+#pragma once
 
-// OLED display width and height, in pixels
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-
-//  4x3 keypad GPIO pins
-#define R4   19 
-#define R3   13 
-#define R2   12 
-#define R1   4    
-#define C1   21 
-#define C2   27 
-#define C3   33  
-
-// INMP441 I2S microphone GPIO pins
-#define I2S_WS 14
-#define I2S_SD 15
-#define I2S_SCK 32
-#define I2S_PORT I2S_NUM_0
-
-// external DAC MAX98357A GPIO pins
-#define DAC_BCK_PIN 26
-#define DAC_WS_PIN 25
-#define DAC_DATA_PIN 22
+#define PIN_NUMBER_OF_LED_STRIP_1 = 13;
+#define NUMBER_OF_LEDS_IN_LED_STRIP_1 = 58;
+#define PIN_NUMBER_OF_HALL_SENSOR = 15;
+#define IMAGE_SIZE_IN_BYTES = (NUMBER_OF_LEDS_IN_LED_STRIP_1 * NUMBER_OF_LEDS_IN_LED_STRIP_1 * 3);
+#define SINGLE_COLOR_SIZE_IN_BYTES = (NUMBER_OF_LEDS_IN_LED_STRIP_1 * NUMBER_OF_LEDS_IN_LED_STRIP_1);
 
 
+namespace globals {
+
+// const float ALPHA = 0.01;  // moving average weight, the smaller the number the slower the average moves
+// const float BETA = 1 - ALPHA;
+
+/*
+number of angles
+const int NUM_OF_ANGLES = 180;
+const int DISTANCE_BETWEEN_ANGLES = 2;
+*/
+
+// period calculation
+// const float MAX_PERIOD_TIME_IN_MICRO_SEC = 500000;
+}
