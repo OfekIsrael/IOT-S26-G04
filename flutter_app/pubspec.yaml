@@ -1,0 +1,28 @@
+name: flutter_app
+description: A Flutter app for POV LED controller.
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.4.9
+  image_picker: ^1.0.7
+  image: ^4.1.4
+  http: ^1.2.0
+  web_socket_channel: ^2.4.3
+  cupertino_icons: ^1.0.2
+  flutter_blue_plus: ^1.31.14
+  permission_handler: ^11.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
