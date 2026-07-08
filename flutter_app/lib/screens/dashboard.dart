@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers.dart';
-import 'image_mode.dart';
+import '../patterns.dart';
 import 'bluetooth_scanner.dart';
+import 'pov_tool.dart';
+import 'clock_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -14,8 +16,7 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('POV LED Controller',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('POV Display App', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
@@ -24,14 +25,9 @@ class DashboardScreen extends ConsumerWidget {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.bluetooth),
             onPressed: () {
-              final activeProtocol = ref.read(activeProtocolProvider);
-              if (activeProtocol == ConnectionProtocol.wifi) {
-                _showIpSettingsDialog(context, ref);
-              } else {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const BluetoothScannerScreen()));
-              }
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const BluetoothScannerScreen()));
             },
           ),
         ],
@@ -41,50 +37,64 @@ class DashboardScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(child: _buildProtocolSelector(ref)),
-            const SizedBox(height: 12),
             _buildConnectionBanner(ref),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             const Text(
-              'Select Mode',
+              'Predefined Patterns',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             Expanded(
               child: GridView.count(
                 crossAxisCount: 2,
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
                 children: [
-                  _ModeCard(
-                    title: 'Clock',
-                    icon: Icons.access_time,
-                    color: Colors.blueAccent,
-                    onTap: () => _setMode(context, ref, 'clock'),
-                  ),
-                  _ModeCard(
-                    title: 'Stopwatch',
-                    icon: Icons.timer,
-                    color: Colors.orangeAccent,
-                    onTap: () => _setMode(context, ref, 'stopwatch'),
-                  ),
-                  _ModeCard(
-                    title: 'Timer',
-                    icon: Icons.hourglass_bottom,
-                    color: Colors.pinkAccent,
-                    onTap: () => _setMode(context, ref, 'timer'),
-                  ),
-                  _ModeCard(
-                    title: 'Image Mode',
-                    icon: Icons.image,
-                    color: Colors.purpleAccent,
+                  _PatternCard(
+                    title: 'Live Clock',
+                    icon: Icons.access_time_filled,
+                    color: Colors.blueGrey,
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                            builder: (context) => const ImageModeScreen()),
+                        MaterialPageRoute(builder: (context) => const ClockScreen()),
                       );
                     },
+                  ),
+                  _PatternCard(
+                    title: 'Custom Drawing',
+                    icon: Icons.draw,
+                    color: Colors.greenAccent,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const PolarPlayground()),
+                      );
+                    },
+                  ),
+                  _PatternCard(
+                    title: 'Rainbow Spiral',
+                    icon: Icons.cyclone,
+                    color: Colors.purpleAccent,
+                    onTap: () => _sendPattern(context, ref, 'Spiral', PredefinedPatterns.getSpiralPattern()),
+                  ),
+                  _PatternCard(
+                    title: 'Concentric Rings',
+                    icon: Icons.radar,
+                    color: Colors.blueAccent,
+                    onTap: () => _sendPattern(context, ref, 'Rings', PredefinedPatterns.getRingsPattern()),
+                  ),
+                  _PatternCard(
+                    title: 'Yellow Star',
+                    icon: Icons.star,
+                    color: Colors.orangeAccent,
+                    onTap: () => _sendPattern(context, ref, 'Star', PredefinedPatterns.getStarPattern()),
+                  ),
+                  _PatternCard(
+                    title: 'Red Fill',
+                    icon: Icons.format_color_fill,
+                    color: Colors.redAccent,
+                    onTap: () => _sendPattern(context, ref, 'Red', PredefinedPatterns.getSolidPattern(255, 0, 0)),
                   ),
                 ],
               ),
@@ -95,25 +105,27 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  void _setMode(BuildContext context, WidgetRef ref, String mode) async {
+  void _sendPattern(BuildContext context, WidgetRef ref, String name, List<List<int>> patternData) async {
+    final bleService = ref.read(bluetoothServiceProvider);
+    
+    // UI feedback
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Setting mode to $mode...')),
+      SnackBar(content: Text('Sending $name pattern...')),
     );
 
-    final commService = ref.read(communicationServiceProvider);
-    bool success = await commService.setMode(mode);
+    bool success = await bleService.sendPattern(patternData);
 
     if (context.mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Mode $mode activated!'),
+              content: Text('$name sent successfully!'),
               backgroundColor: Colors.green),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Failed to connect to ESP32'),
+              content: Text('Failed to send. Check Bluetooth connection.'),
               backgroundColor: Colors.red),
         );
       }
@@ -122,8 +134,6 @@ class DashboardScreen extends ConsumerWidget {
 
   Widget _buildConnectionBanner(WidgetRef ref) {
     final connectionStatus = ref.watch(connectionStatusProvider);
-    final activeProtocol = ref.watch(activeProtocolProvider);
-    final ipAddress = ref.watch(ipAddressProvider);
 
     return connectionStatus.when(
       data: (isConnected) {
@@ -136,15 +146,12 @@ class DashboardScreen extends ConsumerWidget {
           ),
           child: Row(
             children: [
-              Icon(isConnected ? (activeProtocol == ConnectionProtocol.wifi ? Icons.wifi : Icons.bluetooth_connected) 
-                               : (activeProtocol == ConnectionProtocol.wifi ? Icons.wifi_off : Icons.bluetooth_disabled), 
+              Icon(isConnected ? Icons.bluetooth_connected : Icons.bluetooth_disabled, 
                    color: isConnected ? Colors.green : Colors.red),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  isConnected 
-                    ? 'Connected to ESP32' 
-                    : 'Disconnected (${activeProtocol == ConnectionProtocol.wifi ? ipAddress : 'No Device'})',
+                  isConnected ? 'Connected to ESP32' : 'Disconnected (Tap Bluetooth icon to connect)',
                   style: TextStyle(
                     color: isConnected ? Colors.green : Colors.red,
                     fontWeight: FontWeight.bold,
@@ -164,71 +171,15 @@ class DashboardScreen extends ConsumerWidget {
       error: (_, __) => const Text('Error checking connection'),
     );
   }
-
-  Widget _buildProtocolSelector(WidgetRef ref) {
-    final activeProtocol = ref.watch(activeProtocolProvider);
-    return SegmentedButton<ConnectionProtocol>(
-      segments: const [
-        ButtonSegment(
-          value: ConnectionProtocol.wifi,
-          icon: Icon(Icons.wifi),
-          label: Text('Wi-Fi'),
-        ),
-        ButtonSegment(
-          value: ConnectionProtocol.bluetooth,
-          icon: Icon(Icons.bluetooth),
-          label: Text('Bluetooth'),
-        ),
-      ],
-      selected: {activeProtocol},
-      onSelectionChanged: (Set<ConnectionProtocol> newSelection) {
-        ref.read(activeProtocolProvider.notifier).setProtocol(newSelection.first);
-        ref.refresh(connectionStatusProvider);
-      },
-    );
-  }
-
-  void _showIpSettingsDialog(BuildContext context, WidgetRef ref) {
-    final ipController = TextEditingController(text: ref.read(ipAddressProvider));
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Connection Settings'),
-          content: TextField(
-            controller: ipController,
-            decoration: const InputDecoration(
-              labelText: 'ESP32 IP Address',
-              hintText: 'http://192.168.4.1',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                ref.read(ipAddressProvider.notifier).setIp(ipController.text);
-                ref.refresh(connectionStatusProvider);
-                Navigator.pop(context);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 }
 
-class _ModeCard extends StatelessWidget {
+class _PatternCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
 
-  const _ModeCard({
+  const _PatternCard({
     required this.title,
     required this.icon,
     required this.color,
@@ -248,7 +199,7 @@ class _ModeCard extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                color.withValues(alpha: 0.7),
+                color.withOpacity(0.7),
                 color,
               ],
             ),
@@ -260,6 +211,7 @@ class _ModeCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 title,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,

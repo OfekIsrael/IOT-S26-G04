@@ -22,15 +22,20 @@ namespace test_segment {
 
     void render(int current_angle, int start_angle = 0, int end_angle = 90, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255) {
         uint32_t colors[config::NUM_LEDS_PER_STRIP];
-        bool in_segment = is_in_segment(current_angle, start_angle, end_angle);
-
+        
         uint32_t active_color = Adafruit_NeoPixel::Color(r, g, b);
+        
+        int opposite_angle = (current_angle + 180) % 360;
+        bool forward_in_segment = is_in_segment(current_angle, start_angle, end_angle);
+        bool backward_in_segment = is_in_segment(opposite_angle, start_angle, end_angle);
+
+        float center = (config::NUM_LEDS_PER_STRIP - 1) / 2.0f;
 
         for (int i = 0; i < config::NUM_LEDS_PER_STRIP; i++) {
-            if (in_segment) {
-                colors[i] = active_color;
-            } else {
-                colors[i] = 0; // Off
+            if (i >= center) { // Forward half
+                colors[i] = forward_in_segment ? active_color : 0;
+            } else {           // Backward half
+                colors[i] = backward_in_segment ? active_color : 0;
             }
         }
         
@@ -38,32 +43,32 @@ namespace test_segment {
         leds::display(colors);
     }
 
+    uint32_t _get_spoke_color(int angle, int thickness) {
+        if (is_in_segment(angle, 0, thickness - 1)) return Adafruit_NeoPixel::Color(255, 0, 0);
+        if (is_in_segment(angle, 90, 90 + thickness - 1)) return Adafruit_NeoPixel::Color(0, 255, 0);
+        if (is_in_segment(angle, 180, 180 + thickness - 1)) return Adafruit_NeoPixel::Color(0, 0, 255);
+        if (is_in_segment(angle, 270, 270 + thickness - 1)) return Adafruit_NeoPixel::Color(255, 255, 0);
+        return 0;
+    }
+
     // A special test to diagnose interpolation drift.
     // Draws very thin spokes at 0 (Red), 90 (Green), 180 (Blue), and 270 (Yellow).
     // Thickness determines how many degrees wide the spoke is (minimum 1).
     void render_spokes(int current_angle, int thickness = 2) {
         uint32_t colors[config::NUM_LEDS_PER_STRIP];
-        uint32_t active_color = 0; // Default off
         
-        // 0 degrees = Red (Control - exactly at the sensor trigger)
-        if (is_in_segment(current_angle, 0, thickness - 1)) {
-            active_color = Adafruit_NeoPixel::Color(255, 0, 0); 
-        } 
-        // 90 degrees = Green
-        else if (is_in_segment(current_angle, 90, 90 + thickness - 1)) {
-            active_color = Adafruit_NeoPixel::Color(0, 255, 0); 
-        } 
-        // 180 degrees = Blue (Test point for maximum drift)
-        else if (is_in_segment(current_angle, 180, 180 + thickness - 1)) {
-            active_color = Adafruit_NeoPixel::Color(0, 0, 255); 
-        } 
-        // 270 degrees = Yellow
-        else if (is_in_segment(current_angle, 270, 270 + thickness - 1)) {
-            active_color = Adafruit_NeoPixel::Color(255, 255, 0); 
-        }
+        int opposite_angle = (current_angle + 180) % 360;
+        uint32_t forward_color = _get_spoke_color(current_angle, thickness);
+        uint32_t backward_color = _get_spoke_color(opposite_angle, thickness);
+
+        float center = (config::NUM_LEDS_PER_STRIP - 1) / 2.0f;
 
         for (int i = 0; i < config::NUM_LEDS_PER_STRIP; i++) {
-            colors[i] = active_color;
+            if (i >= center) { // Forward half
+                colors[i] = forward_color;
+            } else {           // Backward half
+                colors[i] = backward_color;
+            }
         }
         
         leds::display(colors);
