@@ -5,12 +5,23 @@ import '../patterns.dart';
 import 'bluetooth_scanner.dart';
 import 'pov_tool.dart';
 import 'clock_screen.dart';
+import 'text_screen.dart';
+import 'rpm_screen.dart';
+import 'weather_screen.dart';
+import 'image_screen.dart';
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  double _brightness = 40.0;
+
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
     final isDark = themeMode == ThemeMode.dark;
 
@@ -39,8 +50,32 @@ class DashboardScreen extends ConsumerWidget {
           children: [
             _buildConnectionBanner(ref),
             const SizedBox(height: 24),
+            
+            // Brightness Slider
+            Row(
+              children: [
+                const Icon(Icons.lightbulb_outline, color: Colors.yellow),
+                const SizedBox(width: 8),
+                const Text('Brightness', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Slider(
+                    value: _brightness,
+                    min: 0,
+                    max: 255,
+                    divisions: 255,
+                    label: _brightness.round().toString(),
+                    onChanged: (val) {
+                      setState(() => _brightness = val);
+                      ref.read(bluetoothServiceProvider).setBrightness(val.toInt());
+                    },
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 24),
             const Text(
-              'Predefined Patterns',
+              'Dynamic Modes',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
@@ -62,6 +97,50 @@ class DashboardScreen extends ConsumerWidget {
                     },
                   ),
                   _PatternCard(
+                    title: 'Custom Text',
+                    icon: Icons.text_fields,
+                    color: Colors.deepOrangeAccent,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const CustomTextScreen()),
+                      );
+                    },
+                  ),
+                  _PatternCard(
+                    title: 'Live RPM',
+                    icon: Icons.speed,
+                    color: Colors.orangeAccent,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const RpmScreen()),
+                      );
+                    },
+                  ),
+                  _PatternCard(
+                    title: 'Live Weather',
+                    icon: Icons.cloud,
+                    color: Colors.lightBlue,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const WeatherScreen()),
+                      );
+                    },
+                  ),
+                  _PatternCard(
+                    title: 'Upload Image',
+                    icon: Icons.image,
+                    color: Colors.deepPurpleAccent,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ImageScreen()),
+                      );
+                    },
+                  ),
+                  _PatternCard(
                     title: 'Custom Drawing',
                     icon: Icons.draw,
                     color: Colors.greenAccent,
@@ -72,30 +151,6 @@ class DashboardScreen extends ConsumerWidget {
                       );
                     },
                   ),
-                  _PatternCard(
-                    title: 'Rainbow Spiral',
-                    icon: Icons.cyclone,
-                    color: Colors.purpleAccent,
-                    onTap: () => _sendPattern(context, ref, 'Spiral', PredefinedPatterns.getSpiralPattern()),
-                  ),
-                  _PatternCard(
-                    title: 'Concentric Rings',
-                    icon: Icons.radar,
-                    color: Colors.blueAccent,
-                    onTap: () => _sendPattern(context, ref, 'Rings', PredefinedPatterns.getRingsPattern()),
-                  ),
-                  _PatternCard(
-                    title: 'Yellow Star',
-                    icon: Icons.star,
-                    color: Colors.orangeAccent,
-                    onTap: () => _sendPattern(context, ref, 'Star', PredefinedPatterns.getStarPattern()),
-                  ),
-                  _PatternCard(
-                    title: 'Red Fill',
-                    icon: Icons.format_color_fill,
-                    color: Colors.redAccent,
-                    onTap: () => _sendPattern(context, ref, 'Red', PredefinedPatterns.getSolidPattern(255, 0, 0)),
-                  ),
                 ],
               ),
             ),
@@ -103,33 +158,6 @@ class DashboardScreen extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  void _sendPattern(BuildContext context, WidgetRef ref, String name, List<List<int>> patternData) async {
-    final bleService = ref.read(bluetoothServiceProvider);
-    
-    // UI feedback
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Sending $name pattern...')),
-    );
-
-    bool success = await bleService.sendPattern(patternData);
-
-    if (context.mounted) {
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('$name sent successfully!'),
-              backgroundColor: Colors.green),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Failed to send. Check Bluetooth connection.'),
-              backgroundColor: Colors.red),
-        );
-      }
-    }
   }
 
   Widget _buildConnectionBanner(WidgetRef ref) {

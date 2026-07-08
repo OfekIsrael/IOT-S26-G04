@@ -96,46 +96,85 @@ class PredefinedPatterns {
     return [r, g, b];
   }
   // 5. Digital Clock
-  static List<List<int>> getDigitalClockPattern(DateTime time) {
+  static List<List<int>> getDigitalClockPattern(DateTime time, int r, int g, int b) {
     final canvas = _createCanvas();
     
     String h = time.hour.toString().padLeft(2, '0');
     String m = time.minute.toString().padLeft(2, '0');
     String timeStr = "$h:$m";
 
-    // Draw the clock twice per circle (slices 0-17 and 18-35)
-    for (int half = 0; half < 2; half++) {
-      int startSlice = half * 18 + 1; // +1 to give it a little padding from the edge
-      int currentSlice = startSlice;
+    // Draw the clock only in the second half of the circle (slices 18-35)
+    int startSlice = 18 + 1; // +1 to give it a little padding from the edge
+    int currentSlice = startSlice;
+    
+    for (int i = 0; i < timeStr.length; i++) {
+      String char = timeStr[i];
+      List<List<int>>? charPattern = DigitalFont.font[char];
       
-      for (int i = 0; i < timeStr.length; i++) {
-        String char = timeStr[i];
-        List<List<int>>? charPattern = DigitalFont.font[char];
+      if (charPattern != null) {
+        int charWidth = charPattern[0].length;
+        int charHeight = charPattern.length;
+        int scaleY = 2; // Stretch vertically to make it bigger
         
-        if (charPattern != null) {
-          int charWidth = charPattern[0].length;
-          int charHeight = charPattern.length;
-          int scaleY = 2; // Stretch vertically to make it bigger
-          
-          for (int cSlice = 0; cSlice < charWidth; cSlice++) {
-            for (int cRing = 0; cRing < charHeight * scaleY; cRing++) {
-              int originalRing = cRing ~/ scaleY; // Map back to 5-pixel height
-              
-              if (charPattern[originalRing][cSlice] == 1) {
-                 // Reverse the slice mapping to fix the mirroring on the physical display
-                 int displaySlice = (36 - (currentSlice + cSlice)) % 36;
-                 
-                 // LED 0 is on the OUTSIDE, LED 28 is on the INSIDE.
-                 // cRing=0 is the top of the character, which should be on the outside edge.
-                 // So we just map displayRing directly to cRing (with a +1 offset just so it's not cut off by the absolute edge).
-                 int displayRing = cRing + 1;
-                 
-                 _setPixel(canvas, displaySlice, displayRing, 0, 255, 255); // Cyan color
-              }
+        for (int cSlice = 0; cSlice < charWidth; cSlice++) {
+          for (int cRing = 0; cRing < charHeight * scaleY; cRing++) {
+            int originalRing = cRing ~/ scaleY; // Map back to 5-pixel height
+            
+            if (charPattern[originalRing][cSlice] == 1) {
+                // Reverse the slice mapping to fix the mirroring on the physical display
+                int displaySlice = (36 - (currentSlice + cSlice)) % 36;
+                
+                // LED 0 is on the OUTSIDE, LED 28 is on the INSIDE.
+                // cRing=0 is the top of the character, which should be on the outside edge.
+                int displayRing = cRing + 1;
+                
+                _setPixel(canvas, displaySlice, displayRing, r, g, b);
             }
           }
-          currentSlice += charWidth + 1; // Move past char and add 1 slice of spacing
         }
+        currentSlice += charWidth + 1; // Move past char and add 1 slice of spacing
+      }
+    }
+
+    return canvas;
+  }
+
+  // 6. Custom Text
+  static List<List<int>> getTextPattern(String text, int r, int g, int b) {
+    final canvas = _createCanvas();
+    String upperText = text.toUpperCase();
+
+    int currentSlice = 19; // Start at slice 19 (second half of the rotation)
+
+    for (int i = 0; i < upperText.length; i++) {
+      String char = upperText[i];
+      List<List<int>>? charPattern = DigitalFont.font[char];
+      
+      // Default to space if char not found
+      charPattern ??= DigitalFont.font[' '];
+      
+      if (charPattern != null) {
+        int charWidth = charPattern[0].length;
+        int charHeight = charPattern.length;
+        int scaleY = 2; // Stretch vertically to make it bigger
+
+        for (int cSlice = 0; cSlice < charWidth; cSlice++) {
+          for (int cRing = 0; cRing < charHeight * scaleY; cRing++) {
+            int originalRing = cRing ~/ scaleY; 
+            
+            if (charPattern[originalRing][cSlice] == 1) {
+                int targetSlice = (currentSlice + cSlice) % 36;
+                // Reverse the slice mapping to fix the mirroring on the physical display
+                int displaySlice = (36 - targetSlice) % 36;
+                
+                // LED 0 is on the OUTSIDE
+                int displayRing = cRing + 1;
+                
+                _setPixel(canvas, displaySlice, displayRing, r, g, b);
+            }
+          }
+        }
+        currentSlice += charWidth + 1; // Move past char and add 1 slice of spacing
       }
     }
 

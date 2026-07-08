@@ -25,8 +25,14 @@ int last_slice = -1;
 // --- BLE CONFIGURATION ---
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define RPM_CHAR_UUID       "d203a55e-a6a9-4673-9a3b-28564a51e605"
+#define BRIGHTNESS_CHAR_UUID "b4250400-f38b-4a37-b64d-7bcda53f932e"
 
 bool deviceConnected = false;
+BLECharacteristic *pCharacteristicRpm = NULL;
+unsigned long last_rpm_notify_time = 0;
+int current_rpm = 0;
+volatile int new_brightness = -1;
 
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
@@ -59,6 +65,15 @@ class MyCallbacks: public BLECharacteristicCallbacks {
       } else {
         Serial.print("Received incorrect data length: ");
         Serial.println(rxValue.length());
+      }
+    }
+};
+
+class MyBrightnessCallbacks: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pCharacteristic) {
+      std::string rxValue = pCharacteristic->getValue();
+      if (rxValue.length() == 1) {
+        new_brightness = rxValue[0];
       }
     }
 };
@@ -107,6 +122,19 @@ void setup() {
 
   pCharacteristic->setCallbacks(new MyCallbacks());
 
+  pCharacteristicRpm = pService->createCharacteristic(
+                                         RPM_CHAR_UUID,
+                                         BLECharacteristic::PROPERTY_READ |
+                                         BLECharacteristic::PROPERTY_NOTIFY
+                                       );
+
+  BLECharacteristic *pCharacteristicBrightness = pService->createCharacteristic(
+                                         BRIGHTNESS_CHAR_UUID,
+                                         BLECharacteristic::PROPERTY_WRITE | 
+                                         BLECharacteristic::PROPERTY_WRITE_NR
+                                       );
+  pCharacteristicBrightness->setCallbacks(new MyBrightnessCallbacks());
+
   pService->start();
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
@@ -118,6 +146,13 @@ void setup() {
 }
 
 void loop() {
+  if (new_brightness != -1) {
+    strip.setBrightness(new_brightness);
+    Serial.print("Set brightness to: ");
+    Serial.println(new_brightness);
+    new_brightness = -1;
+  }
+
   unsigned long current_time = micros(); 
   
   noInterrupts();
@@ -133,13 +168,29 @@ void loop() {
 
   // Shut down LEDs if the motor stops (elapsed time exceeds one full rotation period)
   if (elapsed >= current_period) {
+    current_rpm = 0; // Motor stopped
     if (last_slice != -1) { // Only clear once
       strip.clear();
       strip.show();
       last_slice = -1;
     }
-    return;
+  } else {
+    // Calculate RPM
+    // period is in microseconds for 1 full rotation.
+    current_rpm = 60000000 / current_period;
   }
+
+  // Notify phone of current RPM every 1 second
+  if (current_time - last_rpm_notify_time > 1000000) {
+    if (deviceConnected && pCharacteristicRpm != NULL) {
+      String rpmStr = String(current_rpm);
+      pCharacteristicRpm->setValue(rpmStr.c_str());
+      pCharacteristicRpm->notify();
+    }
+    last_rpm_notify_time = current_time;
+  }
+
+  if (elapsed >= current_period) return; // Skip updating LEDs if stopped
 
   // Determine current slice (0 to 35)
   uint8_t current_slice = (elapsed * NUM_SLICES) / current_period;

@@ -51,7 +51,15 @@ class _BluetoothScannerScreenState extends ConsumerState<BluetoothScannerScreen>
     FlutterBluePlus.scanResults.listen((results) {
       if (mounted) {
         setState(() {
-          _scanResults = results;
+          var filtered = results.where((r) => r.device.platformName.isNotEmpty).toList();
+          
+          filtered.sort((a, b) {
+            if (a.device.platformName == 'POV Display') return -1;
+            if (b.device.platformName == 'POV Display') return 1;
+            return a.device.platformName.compareTo(b.device.platformName);
+          });
+          
+          _scanResults = filtered;
         });
       }
     });
@@ -134,7 +142,7 @@ class _BluetoothScannerScreenState extends ConsumerState<BluetoothScannerScreen>
               itemCount: _scanResults.length,
               itemBuilder: (context, index) {
                 final result = _scanResults[index];
-                final deviceName = result.device.platformName.isNotEmpty ? result.device.platformName : 'Unknown Device';
+                final deviceName = result.device.platformName;
                 
                 return ListTile(
                   leading: const Icon(Icons.bluetooth),

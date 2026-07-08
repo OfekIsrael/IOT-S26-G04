@@ -5,18 +5,18 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../providers.dart';
 import '../patterns.dart';
 
-class ClockScreen extends ConsumerStatefulWidget {
-  const ClockScreen({super.key});
+class RpmScreen extends ConsumerStatefulWidget {
+  const RpmScreen({super.key});
 
   @override
-  ConsumerState<ClockScreen> createState() => _ClockScreenState();
+  ConsumerState<RpmScreen> createState() => _RpmScreenState();
 }
 
-class _ClockScreenState extends ConsumerState<ClockScreen> {
+class _RpmScreenState extends ConsumerState<RpmScreen> {
   Timer? _timer;
-  DateTime _currentTime = DateTime.now();
   bool _isSending = false;
-  Color _selectedColor = Colors.cyanAccent;
+  Color _selectedColor = Colors.orangeAccent;
+  int _lastSentRpm = -1;
 
   void _showColorPicker() {
     Color pickerColor = _selectedColor;
@@ -24,7 +24,7 @@ class _ClockScreenState extends ConsumerState<ClockScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Pick text color'),
+          title: const Text('Pick RPM color'),
           content: SingleChildScrollView(
             child: ColorPicker(
               pickerColor: pickerColor,
@@ -43,7 +43,7 @@ class _ClockScreenState extends ConsumerState<ClockScreen> {
               onPressed: () {
                 setState(() => _selectedColor = pickerColor);
                 Navigator.of(context).pop();
-                _sendClockFrame(); // Resend with new color
+                _lastSentRpm = -1; // Force resend on color change
               },
             ),
           ],
@@ -55,16 +55,10 @@ class _ClockScreenState extends ConsumerState<ClockScreen> {
   @override
   void initState() {
     super.initState();
-    // Send the initial clock frame immediately
-    _sendClockFrame();
-    
-    // Start a timer to update the clock every 10 seconds
-    _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
+    // Start a fast timer to check if RPM changed and we need to push a new frame
+    _timer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
       if (mounted) {
-        setState(() {
-          _currentTime = DateTime.now();
-        });
-        _sendClockFrame();
+        _checkAndSendRpm();
       }
     });
   }
@@ -75,21 +69,32 @@ class _ClockScreenState extends ConsumerState<ClockScreen> {
     super.dispose();
   }
 
-  Future<void> _sendClockFrame() async {
-    if (_isSending) return; // Prevent overlapping sends
+  Future<void> _checkAndSendRpm() async {
+    if (_isSending) return;
     
     final bleService = ref.read(bluetoothServiceProvider);
-    
-    // Don't try to send if not connected
     if (bleService.connectedDevice == null) return;
+
+    int currentRpm = bleService.rpmNotifier.value;
+    
+    // Only send if the RPM changed significantly (by at least 10 RPM) or we forced a resend
+    if ((currentRpm - _lastSentRpm).abs() < 10 && _lastSentRpm != -1) return;
 
     _isSending = true;
     try {
       int r = (_selectedColor.r * 255.0).round().clamp(0, 255);
       int g = (_selectedColor.g * 255.0).round().clamp(0, 255);
       int b = (_selectedColor.b * 255.0).round().clamp(0, 255);
-      final matrix = PredefinedPatterns.getDigitalClockPattern(_currentTime, r, g, b);
+      
+      // We have 9 chars max. "1450 RPM" is exactly 8 chars. Fits perfectly.
+      String rpmText = "$currentRpm RPM";
+      if (rpmText.length > 9) {
+        rpmText = currentRpm.toString(); // Fallback if rpm gets insane
+      }
+
+      final matrix = PredefinedPatterns.getTextPattern(rpmText, r, g, b);
       await bleService.sendPattern(matrix);
+      _lastSentRpm = currentRpm;
     } finally {
       if (mounted) {
         _isSending = false;
@@ -97,47 +102,51 @@ class _ClockScreenState extends ConsumerState<ClockScreen> {
     }
   }
 
-  String _formatTime(DateTime time) {
-    String h = time.hour.toString().padLeft(2, '0');
-    String m = time.minute.toString().padLeft(2, '0');
-    return "$h:$m";
-  }
-
   @override
   Widget build(BuildContext context) {
     final connectionStatus = ref.watch(connectionStatusProvider);
+    final bleService = ref.read(bluetoothServiceProvider);
     
     return Scaffold(
       backgroundColor: const Color(0xFF1E1E1E),
       appBar: AppBar(
-        title: const Text('Live Clock Sync'),
+        title: const Text('Live RPM Sync'),
         backgroundColor: Colors.black87,
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.watch_later_outlined, size: 100, color: Colors.blueAccent),
+            const Icon(Icons.speed, size: 100, color: Colors.orangeAccent),
             const SizedBox(height: 30),
-            Text(
-              _formatTime(_currentTime),
-              style: const TextStyle(
-                fontSize: 72,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                letterSpacing: 4,
-              ),
+            
+            // Listen to the RPM updates in real time
+            ValueListenableBuilder<int>(
+              valueListenable: bleService.rpmNotifier,
+              builder: (context, rpm, child) {
+                return Text(
+                  "$rpm RPM",
+                  style: const TextStyle(
+                    fontSize: 64,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 2,
+                  ),
+                );
+              },
             ),
+            
             const SizedBox(height: 10),
             Text(
-              "Keep this screen open to sync the POV display.",
+              "Keep this screen open to beam live RPM to the display.",
               style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16),
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 40),
+            
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text('Clock Color: ', style: TextStyle(color: Colors.white, fontSize: 18)),
+                const Text('Text Color: ', style: TextStyle(color: Colors.white, fontSize: 18)),
                 const SizedBox(width: 16),
                 GestureDetector(
                   onTap: _showColorPicker,
@@ -160,6 +169,7 @@ class _ClockScreenState extends ConsumerState<ClockScreen> {
                 ),
               ],
             ),
+            
             const SizedBox(height: 40),
             connectionStatus.when(
               data: (isConnected) {
@@ -174,7 +184,7 @@ class _ClockScreenState extends ConsumerState<ClockScreen> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        "Syncing with ESP32 via BLE...",
+                        "Listening to ESP32 telemetry...",
                         style: TextStyle(color: Colors.greenAccent.withOpacity(0.8), fontSize: 14),
                       ),
                     ],
