@@ -1,17 +1,16 @@
-# flutter_app
+# Holographic POV Controller App
 
-A new Flutter project.
+This is the Flutter companion application for the Holographic POV Display project.
 
-## Getting Started
+## Features
+- **Bluetooth Low Energy (BLE)** automatic scanning and pairing with the ESP32.
+- **Image Beaming**: Converts any gallery photo into polar coordinates and transmits it to the fan.
+- **Live Weather**: Fetches local weather and displays it as text on the fan.
+- **RPM Monitor**: Displays real-time motor speed using the Hall Effect sensor data.
+- **POV Playground**: A circular drawing grid that instantly mirrors custom pixel art to the fan.
 
-This project is a starting point for a Flutter application.
+## Configuration
+To match the physical hardware of the fan, you can edit the parameters inside `lib/config.dart`.
+If you add more LEDs or change the slice resolution on the physical hardware, simply update the `PovConfig` parameters and rebuild the app.
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+For full installation and compilation instructions, see the `/Documentation` folder in the root repository.

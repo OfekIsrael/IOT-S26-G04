@@ -1,8 +1,11 @@
-## Holographic POV Display Project by:  
+# Holographic POV Display
+
+**A project by the student team:**
 * Yoav Fuchs
 * Ofek Israel
 * Agam Berger
-* Instructors: Itai Dabran, Ilay Yavlovich, Tom Sofer
+
+**Instrctors:** Ilay Yavlovich, Tom Sofer, Itai Dabran
   
 ## Details about the project
 A Persistence of Vision (POV) holographic display system consisting of a spinning physical LED arm (ESP32-based) controlled dynamically via a Flutter mobile app. Features include live weather fetching, real-time fan RPM monitoring via Hall Effect sensor, customizable clock/text displays, and the ability to natively compile and beam full-circle gallery images via Bluetooth Low Energy (BLE).
