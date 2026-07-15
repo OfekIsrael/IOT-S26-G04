@@ -7,7 +7,7 @@
 #define HALL_PIN    15
 #define NUM_LEDS    29
 #define BRIGHTNESS  40
-#define NUM_SLICES  36  
+#define NUM_SLICES  54   
 
 Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -166,8 +166,8 @@ void loop() {
 
   unsigned long elapsed = current_time - current_t0;
 
-  // Shut down LEDs if the motor stops (elapsed time exceeds one full rotation period)
-  if (elapsed >= current_period) {
+  // Shut down LEDs if the motor stops (e.g., no rotation for > 500ms)
+  if (elapsed > 500000) {
     current_rpm = 0; // Motor stopped
     if (last_slice != -1) { // Only clear once
       strip.clear();
@@ -180,8 +180,10 @@ void loop() {
     current_rpm = 60000000 / current_period;
   }
 
-  // Notify phone of current RPM every 1 second
-  if (current_time - last_rpm_notify_time > 1000000) {
+  // Notify phone of current RPM every ~1.037 seconds to prevent 
+  // the BLE transmission delay from synchronizing with common motor speeds 
+  // (like 1500 RPM) and creating a stationary visual gap on the display!
+  if (current_time - last_rpm_notify_time > 1037000) {
     if (deviceConnected && pCharacteristicRpm != NULL) {
       String rpmStr = String(current_rpm);
       pCharacteristicRpm->setValue(rpmStr.c_str());
@@ -190,13 +192,18 @@ void loop() {
     last_rpm_notify_time = current_time;
   }
 
-  if (elapsed >= current_period) return; // Skip updating LEDs if stopped
+  if (elapsed > 500000) return; // Skip updating LEDs if stopped
 
-  // Determine current slice (0 to 35)
+  // Determine current slice
   uint8_t current_slice = (elapsed * NUM_SLICES) / current_period;
+  
+  // Clamp slice to prevent array out-of-bounds if the motor slows down slightly
+  if (current_slice >= NUM_SLICES) {
+    current_slice = NUM_SLICES - 1; 
+  }
 
   // Only update the LEDs if we have moved into a new physical slice
-  if (current_slice < NUM_SLICES && current_slice != last_slice) {
+  if (current_slice != last_slice) {
     for (int i = 0; i < NUM_LEDS; i++) {
       strip.setPixelColor(i, image_buffer[current_slice][i]);
     }

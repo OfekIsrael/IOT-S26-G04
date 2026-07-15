@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../providers.dart';
 import '../patterns.dart';
+import '../config.dart';
 
 class RpmScreen extends ConsumerStatefulWidget {
   const RpmScreen({super.key});
@@ -92,7 +93,13 @@ class _RpmScreenState extends ConsumerState<RpmScreen> {
         rpmText = currentRpm.toString(); // Fallback if rpm gets insane
       }
 
-      final matrix = PredefinedPatterns.getTextPattern(rpmText, r, g, b);
+      // Calculate start slice dynamically so the space lands at the hardware gap.
+      // Gap is physically at the last slice.
+      int rpmDigits = currentRpm.toString().length;
+      int startSlice = ((PovConfig.numSlices - 1) - rpmDigits * 4) % PovConfig.numSlices;
+      if (startSlice < 0) startSlice += PovConfig.numSlices;
+
+      final matrix = PredefinedPatterns.getTextPattern(rpmText, r, g, b, startSlice: startSlice);
       await bleService.sendPattern(matrix);
       _lastSentRpm = currentRpm;
     } finally {

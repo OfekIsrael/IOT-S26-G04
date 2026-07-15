@@ -1,16 +1,17 @@
 import 'dart:math';
 import 'utils/digital_font.dart';
+import 'config.dart';
 
 class PredefinedPatterns {
   
-  // Creates an empty 36x29 black canvas
+  // Creates an empty canvas based on config
   static List<List<int>> _createCanvas() {
-    return List.generate(36, (_) => List.filled(29 * 3, 0));
+    return List.generate(PovConfig.numSlices, (_) => List.filled(PovConfig.numRings * 3, 0));
   }
 
   // Set pixel safely helper
   static void _setPixel(List<List<int>> canvas, int slice, int ledIndex, int r, int g, int b) {
-    if (slice >= 0 && slice < 36 && ledIndex >= 0 && ledIndex < 29) {
+    if (slice >= 0 && slice < PovConfig.numSlices && ledIndex >= 0 && ledIndex < PovConfig.numRings) {
       canvas[slice][ledIndex * 3] = r;
       canvas[slice][ledIndex * 3 + 1] = g;
       canvas[slice][ledIndex * 3 + 2] = b;
@@ -20,10 +21,10 @@ class PredefinedPatterns {
   // 1. Rainbow Spiral
   static List<List<int>> getSpiralPattern() {
     final canvas = _createCanvas();
-    for (int s = 0; s < 36; s++) {
-      for (int l = 0; l < 29; l++) {
+    for (int s = 0; s < PovConfig.numSlices; s++) {
+      for (int l = 0; l < PovConfig.numRings; l++) {
         // Hue shift based on slice and led index
-        double hue = (s / 36.0 + l / 29.0) % 1.0;
+        double hue = (s / PovConfig.numSlices + l / PovConfig.numRings) % 1.0;
         final rgb = _hsvToRgb(hue, 1.0, 1.0);
         
         // Only light up a spiral shape
@@ -38,8 +39,8 @@ class PredefinedPatterns {
   // 2. Concentric Rings
   static List<List<int>> getRingsPattern() {
     final canvas = _createCanvas();
-    for (int s = 0; s < 36; s++) {
-      for (int l = 0; l < 29; l++) {
+    for (int s = 0; s < PovConfig.numSlices; s++) {
+      for (int l = 0; l < PovConfig.numRings; l++) {
         if (l % 5 == 0) {
           int r = (s * 7) % 255;
           int g = (255 - s * 7) % 255;
@@ -55,10 +56,11 @@ class PredefinedPatterns {
   static List<List<int>> getStarPattern() {
     final canvas = _createCanvas();
     // A 5 point star roughly maps to 5 arms in polar coordinates
-    for (int s = 0; s < 36; s++) {
-      // 5 arms evenly spaced in 36 slices (roughly every 7 slices)
-      if (s % 7 == 0) {
-        for (int l = 0; l < 29; l++) {
+    for (int s = 0; s < PovConfig.numSlices; s++) {
+      // 5 arms evenly spaced
+      int spacing = PovConfig.numSlices ~/ 5;
+      if (s % spacing == 0) {
+        for (int l = 0; l < PovConfig.numRings; l++) {
            _setPixel(canvas, s, l, 255, 200, 0); // Yellow/Gold
         }
       }
@@ -69,8 +71,8 @@ class PredefinedPatterns {
   // 4. Solid Color Test
   static List<List<int>> getSolidPattern(int r, int g, int b) {
     final canvas = _createCanvas();
-    for (int s = 0; s < 36; s++) {
-      for (int l = 0; l < 29; l++) {
+    for (int s = 0; s < PovConfig.numSlices; s++) {
+      for (int l = 0; l < PovConfig.numRings; l++) {
         _setPixel(canvas, s, l, r, g, b);
       }
     }
@@ -103,8 +105,8 @@ class PredefinedPatterns {
     String m = time.minute.toString().padLeft(2, '0');
     String timeStr = "$h:$m";
 
-    // Draw the clock only in the second half of the circle (slices 18-35)
-    int startSlice = 18 + 1; // +1 to give it a little padding from the edge
+    // Draw the clock only in the second half of the circle
+    int startSlice = (PovConfig.numSlices ~/ 2) + 1; // +1 to give it a little padding from the edge
     int currentSlice = startSlice;
     
     for (int i = 0; i < timeStr.length; i++) {
@@ -122,7 +124,7 @@ class PredefinedPatterns {
             
             if (charPattern[originalRing][cSlice] == 1) {
                 // Reverse the slice mapping to fix the mirroring on the physical display
-                int displaySlice = (36 - (currentSlice + cSlice)) % 36;
+                int displaySlice = (PovConfig.numSlices - (currentSlice + cSlice)) % PovConfig.numSlices;
                 
                 // LED 0 is on the OUTSIDE, LED 28 is on the INSIDE.
                 // cRing=0 is the top of the character, which should be on the outside edge.
@@ -140,11 +142,12 @@ class PredefinedPatterns {
   }
 
   // 6. Custom Text
-  static List<List<int>> getTextPattern(String text, int r, int g, int b) {
+  static List<List<int>> getTextPattern(String text, int r, int g, int b, {int? startSlice}) {
     final canvas = _createCanvas();
     String upperText = text.toUpperCase();
 
-    int currentSlice = 19; // Start at slice 19 (second half of the rotation)
+    // Start at provided slice or default to second half of the rotation
+    int currentSlice = startSlice ?? ((PovConfig.numSlices ~/ 2) + 1);
 
     for (int i = 0; i < upperText.length; i++) {
       String char = upperText[i];
@@ -163,9 +166,9 @@ class PredefinedPatterns {
             int originalRing = cRing ~/ scaleY; 
             
             if (charPattern[originalRing][cSlice] == 1) {
-                int targetSlice = (currentSlice + cSlice) % 36;
+                int targetSlice = (currentSlice + cSlice) % PovConfig.numSlices;
                 // Reverse the slice mapping to fix the mirroring on the physical display
-                int displaySlice = (36 - targetSlice) % 36;
+                int displaySlice = (PovConfig.numSlices - targetSlice) % PovConfig.numSlices;
                 
                 // LED 0 is on the OUTSIDE
                 int displayRing = cRing + 1;

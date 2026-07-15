@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fbp;
 import 'communication_service.dart';
+import '../config.dart';
 
 class BluetoothService {
   fbp.BluetoothDevice? _connectedDevice;
@@ -17,6 +19,10 @@ class BluetoothService {
 
   // Expose RPM updates directly
   final ValueNotifier<int> rpmNotifier = ValueNotifier<int>(0);
+
+  // Gamma correction table (gamma = 2.8) for NeoPixels
+  final List<int> _gammaTable = List.generate(
+      256, (i) => (math.pow(i / 255.0, 2.8) * 255.0).round().clamp(0, 255));
 
   fbp.BluetoothDevice? get connectedDevice => _connectedDevice;
 
@@ -72,34 +78,40 @@ class BluetoothService {
     return _connectedDevice!.isConnected;
   }
 
-  // Sends 36 packets (one for each slice).
-  // Each packet is 88 bytes: [Slice Index (0-35)] + [29 * 3 RGB bytes]
+  // Sends packets (one for each slice).
+  // Each packet is: [Slice Index] + [numRings * 3 RGB bytes]
   Future<bool> sendPattern(List<List<int>> patternData) async {
     if (_imageCharacteristic == null || _connectedDevice == null || !_connectedDevice!.isConnected) {
       return false;
     }
 
-    if (patternData.length != 36) {
-      print('Invalid pattern size, must be 36 slices.');
+    if (patternData.length != PovConfig.numSlices) {
+      print('Invalid pattern size, must be ${PovConfig.numSlices} slices.');
       return false;
     }
 
     try {
-      for (int slice = 0; slice < 36; slice++) {
+      for (int slice = 0; slice < PovConfig.numSlices; slice++) {
         List<int> sliceData = patternData[slice];
-        if (sliceData.length != 29 * 3) {
+        if (sliceData.length != PovConfig.numRings * 3) {
            print('Invalid slice data size.');
            return false;
         }
 
         List<int> packet = [slice];
-        packet.addAll(sliceData);
         
-        // Write the 88 byte packet without response for speed
-        await _imageCharacteristic!.write(packet, withoutResponse: true);
+        // Apply gamma correction to the RGB data
+        for (int i = 0; i < sliceData.length; i++) {
+          packet.add(_gammaTable[sliceData[i]]);
+        }
         
-        // Small delay to prevent overwhelming the ESP32 BLE stack
-        await Future.delayed(const Duration(milliseconds: 5));
+        // Write the 88 byte packet. We use withoutResponse: false to ensure 
+        // the ESP32 acknowledges receipt before sending the next packet. 
+        // This completely prevents dropping packets when sending large 54-slice arrays!
+        await _imageCharacteristic!.write(packet, withoutResponse: false);
+        
+        // Very small delay (not strictly needed with response, but helps stability)
+        await Future.delayed(const Duration(milliseconds: 2));
       }
       return true;
     } catch (e) {

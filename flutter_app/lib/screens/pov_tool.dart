@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../providers.dart';
+import '../config.dart';
 
 class PolarPlayground extends ConsumerStatefulWidget {
   const PolarPlayground({super.key});
@@ -13,8 +14,8 @@ class PolarPlayground extends ConsumerStatefulWidget {
 }
 
 class _PolarPlaygroundState extends ConsumerState<PolarPlayground> {
-  final int numSlices = 36;
-  final int numRings = 29;
+  final int numSlices = PovConfig.numSlices;
+  final int numRings = PovConfig.numRings;
 
   late List<List<Color?>> grid;
 

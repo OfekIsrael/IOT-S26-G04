@@ -1,12 +1,13 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:image/image.dart' as img;
+import '../config.dart';
 
 class ImageProcessor {
-  static const int numSlices = 36;
-  static const int numRings = 29;
+  static const int numSlices = PovConfig.numSlices;
+  static const int numRings = PovConfig.numRings;
 
-  /// Takes an image byte array, processes it, and returns the 36x29x3 matrix
+  /// Takes an image byte array, processes it, and returns the matrix
   static List<List<int>> processImageToPolarMatrix(Uint8List imageBytes) {
     // 1. Decode Image
     img.Image? srcImg = img.decodeImage(imageBytes);
@@ -33,10 +34,10 @@ class ImageProcessor {
     List<List<int>> matrix = List.generate(numSlices, (_) => List.filled(numRings * 3, 0));
 
     for (int sOut = 0; sOut < numSlices; sOut++) {
-      // Python FIX 1: reverse slice order to fix horizontal mirroring
-      int mappedSlice = (numSlices - sOut) % numSlices;
-      
-      double theta = mappedSlice * (2 * math.pi / numSlices);
+      // The fan hardware draws sOut sequentially (counter-clockwise).
+      // We just need to sample the image sequentially (counter-clockwise).
+      // The Y-axis inversion is already handled below by (cy - dy).
+      double theta = sOut * (2 * math.pi / numSlices);
       double cosT = math.cos(theta);
       double sinT = math.sin(theta);
 
