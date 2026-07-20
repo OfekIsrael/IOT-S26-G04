@@ -144,13 +144,12 @@ class PredefinedPatterns {
   // 6. Custom Text
   static List<List<int>> getTextPattern(String text, int r, int g, int b, {int? startSlice}) {
     final canvas = _createCanvas();
-    String upperText = text.toUpperCase();
 
     // Start at provided slice or default to second half of the rotation
     int currentSlice = startSlice ?? ((PovConfig.numSlices ~/ 2) + 1);
 
-    for (int i = 0; i < upperText.length; i++) {
-      String char = upperText[i];
+    for (int i = 0; i < text.length; i++) {
+      String char = text[i];
       List<List<int>>? charPattern = DigitalFont.font[char];
       
       // Default to space if char not found
