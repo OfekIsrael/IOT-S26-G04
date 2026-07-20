@@ -1,7 +1,7 @@
 # Installation and Compilation
 
 ## 1. ESP32 Firmware
-1. Open `ESP32/ProjectBLE/ProjectBLE.ino` in the Arduino IDE.
+1. Open `ESP32/ESP32.ino` in the Arduino IDE.
 2. Select your ESP32 board from the **Tools > Board** menu (e.g., "ESP32 Dev Module").
 3. Make sure you have the `Adafruit NeoPixel` library installed via the Library Manager.
 4. Verify the `NUM_SLICES` and `NUM_LEDS` match your physical hardware.

@@ -2,8 +2,8 @@
 
 The following parameters are hardcoded into the project and require recompilation to update.
 
-## ESP32 Parameters (`ProjectBLE.ino`)
-These are defined at the top of the `ProjectBLE.ino` file:
+## ESP32 Parameters (`ESP32.ino`)
+These are defined at the top of the `ESP32.ino` file:
 
 * `NUM_SLICES` (Default: 54) - The total number of angular slices the fan is divided into for one 360-degree rotation.
 * `NUM_LEDS` (Default: 29) - The number of WS2812B NeoPixel LEDs mounted on the physical fan arm.

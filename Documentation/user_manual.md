@@ -22,6 +22,6 @@
 ## Calibration Instructions
 There is no manual software calibration required for daily operation. 
 However, if you physically alter the magnet position or the number of LEDs:
-1. Update `NUM_SLICES` or `NUM_LEDS` in `ESP32/ProjectBLE/ProjectBLE.ino`.
+1. Update `NUM_SLICES` or `NUM_LEDS` in `ESP32/ESP32.ino`.
 2. Update the corresponding `PovConfig.numSlices` or `PovConfig.numRings` in `flutter_app/lib/config.dart`.
 3. Recompile and upload both components.
